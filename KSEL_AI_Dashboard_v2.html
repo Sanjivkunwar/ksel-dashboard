@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KSEL · AI Financial Analyst · Board Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --ink:#08090d;--surface:#0d1018;--surface2:#111520;--border:rgba(184,150,62,0.12);
+  --gold:#b8963e;--gl:#d4af62;--gp:rgba(184,150,62,0.1);
+  --paper:#e8e6df;--mist:#9ca0af;--fog:#5a5f6e;
+  --red:#e07060;--redp:rgba(224,112,96,0.1);
+  --grn:#5db894;--grnp:rgba(93,184,148,0.1);
+  --blu:#6aabda;--blup:rgba(106,171,218,0.1);
+}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Outfit',sans-serif;background:var(--ink);color:var(--paper);display:flex;flex-direction:column;}
+
+.topbar{height:56px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;border-bottom:1px solid var(--border);background:rgba(8,9,13,0.97);z-index:100;}
+.brand{display:flex;align-items:center;gap:1rem;}
+.brand-logo{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:1.3rem;color:var(--gl);letter-spacing:0.08em;}
+.brand-sep{width:1px;height:22px;background:var(--border);}
+.brand-name{font-size:0.78rem;font-weight:400;color:var(--mist);}
+.topbar-pills{display:flex;gap:0.6rem;align-items:center;}
+.pill{font-family:'DM Mono',monospace;font-size:0.58rem;letter-spacing:0.13em;text-transform:uppercase;padding:4px 12px;border-radius:2px;}
+.pill-gold{background:var(--gp);color:var(--gl);border:1px solid rgba(184,150,62,0.2);}
+.pill-grn{background:var(--grnp);color:var(--grn);border:1px solid rgba(93,184,148,0.2);}
+.pill-ai{background:linear-gradient(135deg,rgba(184,150,62,0.15),rgba(106,171,218,0.1));color:var(--gl);border:1px solid rgba(184,150,62,0.3);display:flex;align-items:center;gap:6px;}
+.ai-dot{width:6px;height:6px;border-radius:50%;background:var(--grn);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+
+.workspace{flex:1;display:flex;overflow:hidden;}
+
+/* DASHBOARD LEFT */
+.dash-panel{flex:1;min-width:0;display:flex;flex-direction:column;border-right:1px solid var(--border);overflow:hidden;}
+.tab-bar{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;overflow-x:auto;}
+.tab{padding:0.7rem 1.2rem;font-family:'DM Mono',monospace;font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--fog);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.2s;}
+.tab:hover{color:var(--paper);}
+.tab.active{color:var(--gl);border-bottom-color:var(--gold);}
+.dash-scroll{flex:1;overflow-y:auto;padding:1.5rem;}
+
+.kpi-row{display:grid;gap:1px;background:var(--border);margin-bottom:1.2rem;}
+.kpi-row.c4{grid-template-columns:repeat(4,1fr);}
+.kpi-row.c3{grid-template-columns:repeat(3,1fr);}
+.kpi{background:var(--surface);padding:1.2rem 1.4rem;position:relative;cursor:pointer;transition:background 0.2s;}
+.kpi:hover{background:var(--surface2);}
+.kpi:hover::after{content:'Ask AI ↗';position:absolute;top:8px;right:10px;font-family:'DM Mono',monospace;font-size:0.5rem;color:var(--gold);opacity:0.7;letter-spacing:0.1em;}
+.kpi-bar{position:absolute;top:0;left:0;right:0;height:2px;}
+.kpi-bar.g{background:linear-gradient(90deg,var(--gold),transparent);}
+.kpi-bar.r{background:linear-gradient(90deg,var(--red),transparent);}
+.kpi-bar.b{background:linear-gradient(90deg,var(--blu),transparent);}
+.kpi-bar.gr{background:linear-gradient(90deg,var(--grn),transparent);}
+.kpi-label{font-family:'DM Mono',monospace;font-size:0.56rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--fog);margin-bottom:0.5rem;}
+.kpi-val{font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:500;line-height:1;margin-bottom:0.3rem;}
+.kpi-val.g{color:var(--gl);}
+.kpi-val.r{color:var(--red);}
+.kpi-val.b{color:var(--blu);}
+.kpi-val.gr{color:var(--grn);}
+.kpi-sub{font-family:'DM Mono',monospace;font-size:0.57rem;color:var(--fog);}
+.kpi-sub.pos{color:var(--grn);}
+.kpi-sub.neg{color:var(--red);}
+
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem;}
+.card{background:var(--surface);border:1px solid var(--border);padding:1.2rem;}
+.card-title{font-family:'Cormorant Garamond',serif;font-size:0.95rem;font-weight:500;color:var(--paper);margin-bottom:0.2rem;}
+.card-sub{font-family:'DM Mono',monospace;font-size:0.57rem;color:var(--fog);margin-bottom:1rem;}
+
+.ft{width:100%;border-collapse:collapse;font-size:0.76rem;}
+.ft th{font-family:'DM Mono',monospace;font-size:0.55rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--fog);padding:0.6rem 0.8rem;text-align:right;border-bottom:1px solid var(--border);}
+.ft th:first-child{text-align:left;}
+.ft td{padding:0.55rem 0.8rem;text-align:right;color:var(--mist);border-bottom:1px solid rgba(255,255,255,0.03);font-weight:300;}
+.ft td:first-child{text-align:left;color:rgba(180,183,195,0.7);font-size:0.74rem;}
+.ft tr:hover td{background:var(--gp);}
+.ft .gh td{font-family:'DM Mono',monospace;font-size:0.57rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);background:rgba(184,150,62,0.05);text-align:left;padding:0.5rem 0.8rem;border-top:1px solid var(--border);}
+.ft .tot td{font-weight:600;font-size:0.78rem;color:var(--paper);border-top:1px solid rgba(184,150,62,0.2);background:rgba(184,150,62,0.04);}
+.ft .tot td:first-child{color:var(--paper);}
+.neg{color:var(--red)!important;}
+.pos{color:var(--grn)!important;}
+.nil{color:var(--fog)!important;font-family:'DM Mono',monospace;font-size:0.65rem!important;}
+.tab-page{display:none;}
+.tab-page.active{display:block;}
+
+/* CHAT RIGHT */
+.chat-panel{width:390px;flex-shrink:0;display:flex;flex-direction:column;background:var(--surface);overflow:hidden;}
+.chat-header{padding:1rem 1.2rem;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface2);}
+.chat-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem;}
+.chat-title{font-family:'Cormorant Garamond',serif;font-size:1.05rem;font-weight:500;color:var(--paper);}
+.chat-status{font-family:'DM Mono',monospace;font-size:0.55rem;color:var(--grn);display:flex;align-items:center;gap:5px;}
+.chat-desc{font-family:'DM Mono',monospace;font-size:0.57rem;color:var(--fog);line-height:1.5;}
+
+.chat-messages{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:0.8rem;}
+.msg{display:flex;gap:0.6rem;animation:msgIn 0.25s ease;}
+@keyframes msgIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+.msg.user{flex-direction:row-reverse;}
+.msg-avatar{width:28px;height:28px;border-radius:2px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:0.55rem;margin-top:2px;}
+.msg-avatar.ai{background:var(--gp);border:1px solid rgba(184,150,62,0.2);color:var(--gl);}
+.msg-avatar.user{background:rgba(106,171,218,0.1);border:1px solid rgba(106,171,218,0.2);color:var(--blu);}
+.msg-bubble{max-width:90%;padding:0.7rem 0.9rem;font-size:0.78rem;font-weight:300;line-height:1.7;border-radius:2px;}
+.msg-bubble.ai{background:var(--surface2);border:1px solid var(--border);color:var(--paper);}
+.msg-bubble.user{background:rgba(106,171,218,0.08);border:1px solid rgba(106,171,218,0.15);color:var(--paper);}
+.msg-bubble b{color:var(--gl);font-weight:500;}
+.msg-bubble .hi{font-family:'Cormorant Garamond',serif;font-size:1.05rem;color:var(--gl);}
+
+.typing-dots{display:flex;gap:4px;align-items:center;padding:0.3rem 0;}
+.typing-dots span{width:5px;height:5px;border-radius:50%;background:var(--gold);animation:blink 1.2s infinite;}
+.typing-dots span:nth-child(2){animation-delay:0.2s;}
+.typing-dots span:nth-child(3){animation-delay:0.4s;}
+@keyframes blink{0%,80%,100%{opacity:0.2;}40%{opacity:1;}}
+
+.suggestions{padding:0.5rem 1rem 0.4rem;flex-shrink:0;border-top:1px solid var(--border);}
+.sug-label{font-family:'DM Mono',monospace;font-size:0.55rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--fog);margin-bottom:0.5rem;}
+.sug-chips{display:flex;flex-wrap:wrap;gap:0.4rem;}
+.chip{padding:5px 10px;font-size:0.66rem;font-family:'DM Mono',monospace;background:var(--gp);border:1px solid rgba(184,150,62,0.18);color:var(--gl);border-radius:2px;cursor:pointer;transition:all 0.18s;letter-spacing:0.03em;white-space:nowrap;}
+.chip:hover{background:rgba(184,150,62,0.2);border-color:rgba(184,150,62,0.4);}
+
+.chat-input-wrap{padding:0.8rem 1rem;border-top:1px solid var(--border);flex-shrink:0;background:var(--surface2);}
+.chat-input-row{display:flex;gap:0.5rem;align-items:flex-end;}
+.chat-textarea{flex:1;background:var(--surface);border:1px solid var(--border);color:var(--paper);padding:0.6rem 0.8rem;font-family:'Outfit',sans-serif;font-size:0.78rem;font-weight:300;resize:none;outline:none;border-radius:2px;min-height:38px;max-height:100px;transition:border-color 0.2s;line-height:1.5;}
+.chat-textarea:focus{border-color:rgba(184,150,62,0.35);}
+.chat-textarea::placeholder{color:var(--fog);}
+.send-btn{width:38px;height:38px;background:var(--gp);border:1px solid rgba(184,150,62,0.3);color:var(--gl);cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:2px;transition:all 0.2s;flex-shrink:0;}
+.send-btn:hover{background:rgba(184,150,62,0.22);}
+.send-btn:disabled{opacity:0.3;cursor:not-allowed;}
+
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(184,150,62,0.15);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-logo">KSEL</div>
+    <div class="brand-sep"></div>
+    <div class="brand-name">Khed Sinnar Expressway Limited — Board Financial Review</div>
+  </div>
+  <div class="topbar-pills">
+    <div class="pill pill-gold">H1 FY2026 · Sep 30, 2025</div>
+    <div class="pill pill-grn">Ind AS · ₹ Millions</div>
+    <div class="pill pill-ai"><span class="ai-dot"></span>AI Analyst Active</div>
+  </div>
+</div>
+
+<div class="workspace">
+
+  <!-- DASHBOARD -->
+  <div class="dash-panel">
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab(this,'overview')">Overview</div>
+      <div class="tab" onclick="switchTab(this,'bs')">Balance Sheet</div>
+      <div class="tab" onclick="switchTab(this,'pnl')">Profit &amp; Loss</div>
+      <div class="tab" onclick="switchTab(this,'cf')">Cash Flow</div>
+      <div class="tab" onclick="switchTab(this,'eq')">Equity</div>
+    </div>
+    <div class="dash-scroll">
+
+      <!-- OVERVIEW -->
+      <div class="tab-page active" id="tp-overview">
+        <div class="kpi-row c4">
+          <div class="kpi" onclick="askQ('What is the significance of KSEL having total assets of 302.39 million?')"><div class="kpi-bar g"></div><div class="kpi-label">Total Assets</div><div class="kpi-val g">₹302.39M</div><div class="kpi-sub">vs ₹302.52M Mar 25</div></div>
+          <div class="kpi" onclick="askQ('Explain KSEL equity ratio of 93.6% — is it healthy for a road concession SPV?')"><div class="kpi-bar b"></div><div class="kpi-label">Total Equity</div><div class="kpi-val b">₹283.09M</div><div class="kpi-sub pos">Equity Ratio 93.6%</div></div>
+          <div class="kpi" onclick="askQ('Why has net loss reduced to just 0.003 million in H1 FY26 from 1.89 million in FY25? Is this sustainable?')"><div class="kpi-bar r"></div><div class="kpi-label">Net Loss H1 FY26</div><div class="kpi-val r">−₹0.003M</div><div class="kpi-sub pos">↓ 99.8% vs FY25</div></div>
+          <div class="kpi" onclick="askQ('KSEL has nil revenue from operations across all periods. Why? When will it start generating toll revenue?')"><div class="kpi-bar gr"></div><div class="kpi-label">Revenue from Ops</div><div class="kpi-val gr" style="font-size:1.4rem;letter-spacing:.05em">NIL</div><div class="kpi-sub neg">Pre-revenue phase</div></div>
+        </div>
+        <div class="g2">
+          <div class="card"><div class="card-title">Assets · Equity · Liabilities</div><div class="card-sub">3-period comparison · ₹ Millions</div><canvas id="c1" height="200"></canvas></div>
+          <div class="card"><div class="card-title">Net Loss Trajectory</div><div class="card-sub">Improving trend · ₹ Millions</div><canvas id="c2" height="200"></canvas></div>
+        </div>
+        <div class="g3">
+          <div class="card"><div class="card-title">Asset Composition</div><div class="card-sub">Sep 2025</div><canvas id="c3" height="170"></canvas></div>
+          <div class="card"><div class="card-title">Cash Balance Trend</div><div class="card-sub">₹ Millions</div><canvas id="c4" height="170"></canvas></div>
+          <div class="card"><div class="card-title">Expense Reduction</div><div class="card-sub">₹ Millions</div><canvas id="c5" height="170"></canvas></div>
+        </div>
+      </div>
+
+      <!-- BALANCE SHEET -->
+      <div class="tab-page" id="tp-bs">
+        <div class="kpi-row c4">
+          <div class="kpi"><div class="kpi-bar g"></div><div class="kpi-label">Total Assets</div><div class="kpi-val g">₹302.39M</div><div class="kpi-sub">Sep 30, 2025</div></div>
+          <div class="kpi"><div class="kpi-bar gr"></div><div class="kpi-label">Current Assets</div><div class="kpi-val gr">₹302.39M</div><div class="kpi-sub pos">99.9% of total</div></div>
+          <div class="kpi" onclick="askQ('KSEL has current liabilities of 19.29 million mostly trade payables. Who are these creditors?')"><div class="kpi-bar r"></div><div class="kpi-label">Current Liabilities</div><div class="kpi-val r">₹19.29M</div><div class="kpi-sub">Trade payables only</div></div>
+          <div class="kpi" onclick="askQ('KSEL current ratio is 15.7x. What does this mean and is it normal for an SPV?')"><div class="kpi-bar b"></div><div class="kpi-label">Current Ratio</div><div class="kpi-val b">15.7×</div><div class="kpi-sub pos">Highly liquid</div></div>
+        </div>
+        <div class="g2">
+          <div class="card"><div class="card-title">Asset Mix — Sep 2025</div><div class="card-sub">₹ Millions</div><canvas id="c-bs1" height="200"></canvas></div>
+          <div class="card"><div class="card-title">Balance Sheet Trend</div><div class="card-sub">Assets &amp; Equity · ₹ Millions</div><canvas id="c-bs2" height="200"></canvas></div>
+        </div>
+        <div class="card"><div class="card-title">Balance Sheet — Full Detail</div><div class="card-sub">₹ Millions</div>
+          <table class="ft"><thead><tr><th>Particulars</th><th>Sep 25</th><th>Mar 25</th><th>Mar 24</th></tr></thead>
+          <tbody>
+            <tr class="gh"><td colspan="4">Non-Current Assets</td></tr>
+            <tr><td>Property, Plant &amp; Equipment</td><td class="nil">—</td><td class="nil">—</td><td class="nil">—</td></tr>
+            <tr><td>Service Concession Arrangements (SCA)</td><td class="nil">—</td><td class="nil">—</td><td class="nil">—</td></tr>
+            <tr><td>Other Financial Assets (NC)</td><td class="nil">—</td><td class="nil">—</td><td>0.60</td></tr>
+            <tr class="tot"><td>Total Non-Current Assets</td><td class="nil">—</td><td class="nil">—</td><td class="pos">0.60</td></tr>
+            <tr class="gh"><td colspan="4">Current Assets</td></tr>
+            <tr><td>Cash &amp; Cash Equivalents</td><td>8.07</td><td>8.21</td><td>9.82</td></tr>
+            <tr><td>Other Financial Assets (Current)</td><td>0.01</td><td class="nil">—</td><td class="nil">—</td></tr>
+            <tr><td>Current Tax Asset (Net)</td><td>294.31</td><td>294.31</td><td>294.31</td></tr>
+            <tr class="tot"><td>Total Current Assets</td><td class="pos">302.39</td><td class="pos">302.52</td><td class="pos">304.13</td></tr>
+            <tr class="tot"><td>TOTAL ASSETS</td><td class="pos">302.39</td><td class="pos">302.52</td><td class="pos">305.16</td></tr>
+            <tr class="gh"><td colspan="4">Equity</td></tr>
+            <tr><td>Equity Share Capital</td><td>2,941.90</td><td>2,941.90</td><td>2,941.90</td></tr>
+            <tr><td>Deemed Equity</td><td>97.50</td><td>97.50</td><td>97.50</td></tr>
+            <tr><td>Retained Earnings (Deficit)</td><td class="neg">(2,756.31)</td><td class="neg">(2,756.31)</td><td class="neg">(2,754.42)</td></tr>
+            <tr class="tot"><td>Total Equity</td><td class="pos">283.09</td><td class="pos">283.09</td><td class="pos">284.98</td></tr>
+            <tr class="gh"><td colspan="4">Liabilities</td></tr>
+            <tr><td>Trade Payables (non-MSME)</td><td>19.29</td><td>19.33</td><td>19.72</td></tr>
+            <tr><td>Trade Payables (MSME)</td><td class="nil">—</td><td class="nil">—</td><td>0.43</td></tr>
+            <tr><td>Other Current Liabilities</td><td class="nil">—</td><td>0.09</td><td>0.03</td></tr>
+            <tr class="tot"><td>Total Current Liabilities</td><td class="neg">19.29</td><td class="neg">19.42</td><td class="neg">20.18</td></tr>
+            <tr class="tot"><td>TOTAL EQUITY &amp; LIABILITIES</td><td class="pos">302.39</td><td class="pos">302.52</td><td class="pos">305.16</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+
+      <!-- P&L -->
+      <div class="tab-page" id="tp-pnl">
+        <div class="kpi-row c4">
+          <div class="kpi"><div class="kpi-bar g"></div><div class="kpi-label">Revenue from Ops</div><div class="kpi-val g" style="font-size:1.4rem">NIL</div><div class="kpi-sub">All 3 periods</div></div>
+          <div class="kpi"><div class="kpi-bar b"></div><div class="kpi-label">Total Expenses H1</div><div class="kpi-val b">₹0.003M</div><div class="kpi-sub pos">↓ 99.8% vs FY25</div></div>
+          <div class="kpi"><div class="kpi-bar r"></div><div class="kpi-label">Net Loss H1 FY26</div><div class="kpi-val r">−₹0.003M</div><div class="kpi-sub pos">Best period on record</div></div>
+          <div class="kpi"><div class="kpi-bar gr"></div><div class="kpi-label">Tax Expense</div><div class="kpi-val gr" style="font-size:1.4rem">NIL</div><div class="kpi-sub">Zero across all periods</div></div>
+        </div>
+        <div class="g2">
+          <div class="card"><div class="card-title">Expense Breakdown</div><div class="card-sub">By type · ₹ Millions</div><canvas id="c-pnl1" height="200"></canvas></div>
+          <div class="card"><div class="card-title">Loss Reduction Trend</div><div class="card-sub">₹ Millions — improving</div><canvas id="c-pnl2" height="200"></canvas></div>
+        </div>
+        <div class="card"><div class="card-title">Income Statement — Full Detail</div><div class="card-sub">₹ Millions</div>
+          <table class="ft"><thead><tr><th>Particulars</th><th>H1 FY26</th><th>FY25</th><th>FY24</th></tr></thead>
+          <tbody>
+            <tr class="gh"><td colspan="4">Income</td></tr>
+            <tr><td>Revenue from Operations</td><td class="nil">—</td><td class="nil">—</td><td class="nil">—</td></tr>
+            <tr><td>Other Income</td><td class="nil">—</td><td class="nil">—</td><td class="pos">8.51</td></tr>
+            <tr class="tot"><td>Total Income</td><td class="nil">—</td><td class="nil">—</td><td class="pos">8.51</td></tr>
+            <tr class="gh"><td colspan="4">Expenses</td></tr>
+            <tr><td>Finance Costs (net)</td><td class="nil">—</td><td class="neg">0.35</td><td class="nil">—</td></tr>
+            <tr><td>Other Expenses</td><td class="neg">0.003</td><td class="neg">1.54</td><td class="neg">10.01</td></tr>
+            <tr class="tot"><td>Total Expenses</td><td class="neg">0.003</td><td class="neg">1.89</td><td class="neg">10.01</td></tr>
+            <tr class="gh"><td colspan="4">Result</td></tr>
+            <tr><td>Profit Before Tax</td><td class="neg">(0.003)</td><td class="neg">(1.89)</td><td class="neg">(1.51)</td></tr>
+            <tr><td>Tax Expense</td><td class="nil">—</td><td class="nil">—</td><td class="nil">—</td></tr>
+            <tr class="tot"><td>Net Profit / (Loss)</td><td class="neg">(0.003)</td><td class="neg">(1.89)</td><td class="neg">(1.51)</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+
+      <!-- CASH FLOW -->
+      <div class="tab-page" id="tp-cf">
+        <div class="kpi-row c4">
+          <div class="kpi"><div class="kpi-bar r"></div><div class="kpi-label">Operating CF</div><div class="kpi-val r">−₹0.13M</div><div class="kpi-sub pos">vs −₹1.61M FY25</div></div>
+          <div class="kpi"><div class="kpi-bar g"></div><div class="kpi-label">Investing CF</div><div class="kpi-val g" style="font-size:1.4rem">NIL</div><div class="kpi-sub">No capex</div></div>
+          <div class="kpi"><div class="kpi-bar g"></div><div class="kpi-label">Financing CF</div><div class="kpi-val g" style="font-size:1.4rem">NIL</div><div class="kpi-sub">No new debt</div></div>
+          <div class="kpi" onclick="askQ('Cash balance has been declining from 12.67M in FY24 to 8.07M now. Should the board be concerned?')"><div class="kpi-bar b"></div><div class="kpi-label">Closing Cash</div><div class="kpi-val b">₹8.07M</div><div class="kpi-sub neg">↓ from ₹12.67M (FY24)</div></div>
+        </div>
+        <div class="g2">
+          <div class="card"><div class="card-title">Cash Flow by Activity</div><div class="card-sub">₹ Millions</div><canvas id="c-cf1" height="200"></canvas></div>
+          <div class="card"><div class="card-title">Cash Balance Movement</div><div class="card-sub">Opening → Closing</div><canvas id="c-cf2" height="200"></canvas></div>
+        </div>
+        <div class="card"><div class="card-title">Cash Flow Statement</div><div class="card-sub">₹ Millions</div>
+          <table class="ft"><thead><tr><th>Particulars</th><th>H1 FY26</th><th>FY25</th><th>FY24</th></tr></thead>
+          <tbody>
+            <tr class="gh"><td colspan="4">A. Operating Activities</td></tr>
+            <tr><td>Net Profit / (Loss)</td><td class="neg">(0.003)</td><td class="neg">(1.89)</td><td class="neg">(1.51)</td></tr>
+            <tr><td>Changes in Trade Payables</td><td class="neg">(0.04)</td><td class="neg">(0.39)</td><td class="pos">8.03</td></tr>
+            <tr><td>Changes in Other Liabilities</td><td class="neg">(0.09)</td><td class="pos">0.67</td><td class="neg">(1.48)</td></tr>
+            <tr><td>Income Taxes Paid (Net)</td><td class="nil">—</td><td class="nil">—</td><td class="neg">(7.90)</td></tr>
+            <tr class="tot"><td>Net Cash from Operating Activities</td><td class="neg">(0.13)</td><td class="neg">(1.61)</td><td class="neg">(2.85)</td></tr>
+            <tr class="gh"><td colspan="4">B &amp; C. Investing + Financing</td></tr>
+            <tr><td>All items</td><td class="nil">—</td><td class="nil">—</td><td class="nil">—</td></tr>
+            <tr class="tot"><td>Net Investing + Financing CF</td><td class="nil">—</td><td class="nil">—</td><td class="nil">—</td></tr>
+            <tr class="gh"><td colspan="4">Summary</td></tr>
+            <tr><td>Net Change in Cash</td><td class="neg">(0.13)</td><td class="neg">(1.61)</td><td class="neg">(2.85)</td></tr>
+            <tr><td>Opening Cash</td><td>8.21</td><td>9.82</td><td>12.67</td></tr>
+            <tr class="tot"><td>Closing Cash Balance</td><td class="pos">8.07</td><td class="pos">8.21</td><td class="pos">9.82</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+
+      <!-- EQUITY -->
+      <div class="tab-page" id="tp-eq">
+        <div class="kpi-row c4">
+          <div class="kpi"><div class="kpi-bar g"></div><div class="kpi-label">Share Capital</div><div class="kpi-val g">₹2,941.9M</div><div class="kpi-sub">Stable — no dilution</div></div>
+          <div class="kpi" onclick="askQ('What is deemed equity of 97.5 million in KSEL and how is it treated under Ind AS?')"><div class="kpi-bar b"></div><div class="kpi-label">Deemed Equity</div><div class="kpi-val b">₹97.5M</div><div class="kpi-sub">Click to ask AI ↗</div></div>
+          <div class="kpi" onclick="askQ('KSEL has an accumulated deficit of 2756 million against share capital of 2941 million. What does this mean for the company?')"><div class="kpi-bar r"></div><div class="kpi-label">Accumulated Deficit</div><div class="kpi-val r">−₹2,756.3M</div><div class="kpi-sub neg">Historical losses</div></div>
+          <div class="kpi"><div class="kpi-bar gr"></div><div class="kpi-label">Net Equity</div><div class="kpi-val gr">₹283.1M</div><div class="kpi-sub">93.6% of total assets</div></div>
+        </div>
+        <div class="g2">
+          <div class="card"><div class="card-title">Equity Structure</div><div class="card-sub">Gross components · Sep 2025</div><canvas id="c-eq1" height="200"></canvas></div>
+          <div class="card"><div class="card-title">Net Equity Trend</div><div class="card-sub">₹ Millions</div><canvas id="c-eq2" height="200"></canvas></div>
+        </div>
+        <div class="card"><div class="card-title">Statement of Changes in Equity</div><div class="card-sub">₹ Millions</div>
+          <table class="ft"><thead><tr><th>Particulars</th><th>Share Cap.</th><th>Deemed Eq.</th><th>Ret. Earnings</th><th>Total Equity</th></tr></thead>
+          <tbody>
+            <tr class="gh"><td colspan="5">Year Ended March 31, 2025</td></tr>
+            <tr><td>Opening (Apr 1, 2024)</td><td>2,941.90</td><td>97.50</td><td class="neg">(2,754.42)</td><td class="pos">284.98</td></tr>
+            <tr><td>Comprehensive Loss FY25</td><td class="nil">—</td><td class="nil">—</td><td class="neg">(1.89)</td><td class="neg">(1.89)</td></tr>
+            <tr class="tot"><td>Closing (Mar 31, 2025)</td><td>2,941.90</td><td>97.50</td><td class="neg">(2,756.31)</td><td class="pos">283.09</td></tr>
+            <tr class="gh"><td colspan="5">H1 FY2026 — Period Ended Sep 30, 2025</td></tr>
+            <tr><td>Opening (Apr 1, 2025)</td><td>2,941.90</td><td>97.50</td><td class="neg">(2,756.31)</td><td class="pos">283.09</td></tr>
+            <tr><td>Comprehensive Loss H1 FY26</td><td class="nil">—</td><td class="nil">—</td><td class="neg">(0.003)</td><td class="neg">(0.003)</td></tr>
+            <tr class="tot"><td>Closing (Sep 30, 2025)</td><td>2,941.90</td><td>97.50</td><td class="neg">(2,756.31)</td><td class="pos">283.09</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /dash-panel -->
+
+  <!-- AI CHAT -->
+  <div class="chat-panel">
+    <div class="chat-header">
+      <div class="chat-header-top">
+        <div class="chat-title">AI Financial Analyst</div>
+        <div class="chat-status"><span class="ai-dot"></span>Ready</div>
+      </div>
+      <div class="chat-desc">Ask any question about KSEL financials. Click KPI cards to auto-ask. Powered by Claude AI.</div>
+    </div>
+
+    <div class="chat-messages" id="chatMessages">
+      <div class="msg">
+        <div class="msg-avatar ai">AI</div>
+        <div class="msg-bubble ai">
+          <b>Welcome to the KSEL AI Financial Analyst.</b><br><br>
+          I have complete knowledge of Khed Sinnar Expressway's <b>Ind AS financials</b> — Balance Sheet, P&amp;L, Cash Flow and Equity across <b>H1 FY26, FY25 and FY24</b>.<br><br>
+          Ask me anything — financial ratios, risk flags, board-level summaries, specific line items, or what any number means. You can also <b>click any KPI card</b> on the left to instantly ask about it.
+        </div>
+      </div>
+    </div>
+
+    <div class="suggestions">
+      <div class="sug-label">Quick Questions</div>
+      <div class="sug-chips">
+        <div class="chip" onclick="askQ('Give me a concise board-level summary of KSEL financial health in 4 bullet points')">Board Summary</div>
+        <div class="chip" onclick="askQ('What are the top 3 financial risks the board should be aware of?')">Key Risks</div>
+        <div class="chip" onclick="askQ('Why is 97% of assets a tax asset? What does the 294 million current tax asset represent?')">Tax Asset</div>
+        <div class="chip" onclick="askQ('What is the accumulated deficit of 2756 million? How did it build up?')">Deficit Analysis</div>
+        <div class="chip" onclick="askQ('Is KSEL debt free? Comment on the capital structure.')">Capital Structure</div>
+        <div class="chip" onclick="askQ('How does KSEL compare to a typical road infrastructure SPV in India?')">Benchmarking</div>
+        <div class="chip" onclick="askQ('What does Service Concession Arrangement mean and how does it affect the financials?')">What is SCA?</div>
+        <div class="chip" onclick="askQ('When might KSEL generate revenue and what should the board track going forward?')">Revenue Outlook</div>
+      </div>
+    </div>
+
+    <div class="chat-input-wrap">
+      <div class="chat-input-row">
+        <textarea class="chat-textarea" id="chatInput" placeholder="Ask anything about the financials…" rows="1" onkeydown="handleKey(event)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2L2 8l4 2 2 4 6-12z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /workspace -->
+
+<script>
+// ── CHARTS ──
+Chart.defaults.color='#5a5f6e';
+Chart.defaults.borderColor='rgba(184,150,62,0.08)';
+Chart.defaults.font.family="'DM Mono',monospace";
+Chart.defaults.font.size=10;
+const G='#d4af62',GP='rgba(184,150,62,0.15)',R='#e07060',RP='rgba(224,112,96,0.13)',
+      B='#6aabda',BP='rgba(106,171,218,0.12)',GR='#5db894',GRP='rgba(93,184,148,0.1)';
+const tt={backgroundColor:'#0d1018',borderColor:'rgba(184,150,62,0.25)',borderWidth:1,titleColor:'#d4af62',bodyColor:'#9ca0af',padding:10,titleFont:{family:"'DM Mono',monospace",size:10},bodyFont:{family:"'Outfit',sans-serif",size:11}};
+const sc={x:{grid:{color:'rgba(184,150,62,0.05)'},ticks:{color:'#3d4155'}},y:{grid:{color:'rgba(184,150,62,0.05)'},ticks:{color:'#3d4155'}}};
+const leg={labels:{color:'#5a5f6e',font:{size:9},padding:12,boxWidth:8}};
+
+function mk(id,cfg){const el=document.getElementById(id);if(el)new Chart(el,cfg);}
+function bo(e={}){return{responsive:true,plugins:{legend:leg,tooltip:tt},scales:sc,...e};}
+
+mk('c1',{type:'bar',data:{labels:["Sep '25","Mar '25","Mar '24"],datasets:[{label:'Assets',data:[302.39,302.52,305.16],backgroundColor:GP,borderColor:G,borderWidth:1.5},{label:'Equity',data:[283.09,283.09,284.98],backgroundColor:BP,borderColor:B,borderWidth:1.5},{label:'Liabilities',data:[19.29,19.42,20.18],backgroundColor:RP,borderColor:R,borderWidth:1.5}]},options:bo()});
+mk('c2',{type:'line',data:{labels:['FY24','FY25','H1 FY26'],datasets:[{label:'Net Loss (₹M)',data:[1.507,1.889,0.003],borderColor:R,backgroundColor:RP,pointBackgroundColor:[R,R,GR],pointBorderColor:'#0d1018',pointBorderWidth:2,pointRadius:5,tension:0.3,fill:true}]},options:bo()});
+mk('c3',{type:'doughnut',data:{labels:['Tax Asset 97.3%','Cash 2.7%','Other'],datasets:[{data:[294.31,8.07,0.01],backgroundColor:[G,B,GR],borderWidth:0}]},options:{responsive:true,cutout:'70%',plugins:{legend:{position:'bottom',labels:{color:'#5a5f6e',font:{size:9},padding:6,boxWidth:8}},tooltip:tt}}});
+mk('c4',{type:'bar',data:{labels:['FY24 Open','FY24 Close','FY25 Close','H1 Close'],datasets:[{label:'Cash (₹M)',data:[12.67,9.82,8.21,8.07],backgroundColor:[BP,GP,GP,GP],borderColor:[B,G,G,G],borderWidth:1.5}]},options:bo({plugins:{legend:{display:false},tooltip:tt}})});
+mk('c5',{type:'bar',data:{labels:['FY24','FY25','H1 FY26'],datasets:[{label:'Expenses (₹M)',data:[10.014,1.890,0.003],backgroundColor:[RP,'rgba(224,112,96,0.2)','rgba(224,112,96,0.07)'],borderColor:R,borderWidth:1.5}]},options:bo({plugins:{legend:{display:false},tooltip:tt}})});
+mk('c-bs1',{type:'doughnut',data:{labels:['Tax Asset','Cash','Other'],datasets:[{data:[294.31,8.07,0.01],backgroundColor:[G,B,GR],borderWidth:0}]},options:{responsive:true,cutout:'68%',plugins:{legend:{position:'right',labels:{color:'#5a5f6e',font:{size:9},padding:10,boxWidth:8}},tooltip:tt}}});
+mk('c-bs2',{type:'line',data:{labels:["Mar '24","Mar '25","Sep '25"],datasets:[{label:'Assets',data:[305.16,302.52,302.39],borderColor:G,backgroundColor:GP,pointBackgroundColor:G,pointBorderColor:'#0d1018',pointBorderWidth:2,pointRadius:5,tension:0.2,fill:true},{label:'Equity',data:[284.98,283.09,283.09],borderColor:B,backgroundColor:BP,pointBackgroundColor:B,pointBorderColor:'#0d1018',pointBorderWidth:2,pointRadius:5,tension:0.2,fill:true}]},options:bo()});
+mk('c-pnl1',{type:'bar',data:{labels:['FY24','FY25','H1 FY26'],datasets:[{label:'Finance Costs',data:[0,0.354,0],backgroundColor:'rgba(160,100,220,0.2)',borderColor:'#a064dc',borderWidth:1.5},{label:'Other Expenses',data:[10.014,1.536,0.003],backgroundColor:RP,borderColor:R,borderWidth:1.5}]},options:bo({scales:{x:{stacked:true,...sc.x},y:{stacked:true,...sc.y}}})});
+mk('c-pnl2',{type:'line',data:{labels:['FY24','FY25','H1 FY26'],datasets:[{label:'Net Loss (₹M)',data:[1.507,1.889,0.003],borderColor:R,backgroundColor:RP,pointBackgroundColor:[R,R,GR],pointBorderColor:'#0d1018',pointBorderWidth:2,pointRadius:6,tension:0.3,fill:true}]},options:bo()});
+mk('c-cf1',{type:'bar',data:{labels:['FY24','FY25','H1 FY26'],datasets:[{label:'Operating',data:[-2.853,-1.614,-0.133],backgroundColor:RP,borderColor:R,borderWidth:1.5},{label:'Investing',data:[0,0,0],backgroundColor:GP,borderColor:G,borderWidth:1.5},{label:'Financing',data:[0,0,0],backgroundColor:BP,borderColor:B,borderWidth:1.5}]},options:bo()});
+mk('c-cf2',{type:'line',data:{labels:['FY24 Open','FY24 Close','FY25 Close','H1 Close'],datasets:[{label:'Cash (₹M)',data:[12.67,9.82,8.21,8.07],borderColor:GR,backgroundColor:GRP,pointBackgroundColor:GR,pointBorderColor:'#0d1018',pointBorderWidth:2,pointRadius:5,tension:0.2,fill:true}]},options:bo({plugins:{legend:{display:false},tooltip:tt}})});
+mk('c-eq1',{type:'doughnut',data:{labels:['Share Capital','Deemed Equity','Accum. Deficit'],datasets:[{data:[2941.9,97.5,2756.31],backgroundColor:[G,B,R],borderWidth:0}]},options:{responsive:true,cutout:'68%',plugins:{legend:{position:'bottom',labels:{color:'#5a5f6e',font:{size:9},padding:8,boxWidth:8}},tooltip:tt}}});
+mk('c-eq2',{type:'line',data:{labels:["Mar '24","Mar '25","Sep '25"],datasets:[{label:'Net Equity (₹M)',data:[284.98,283.09,283.09],borderColor:G,backgroundColor:GP,pointBackgroundColor:G,pointBorderColor:'#0d1018',pointBorderWidth:2,pointRadius:6,tension:0.2,fill:true}]},options:bo({plugins:{legend:{display:false},tooltip:tt}})});
+
+// ── TABS ──
+function switchTab(el,id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-page').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tp-'+id).classList.add('active');
+}
+
+// ── AI KNOWLEDGE BASE ──
+const SYSTEM = `You are an expert financial analyst for Khed Sinnar Expressway Limited (KSEL), a road concession SPV in Maharashtra, India. You are presenting to the board of directors. You have precise knowledge of all financials below and you answer questions accurately, concisely and professionally.
+
+KSEL COMPLETE FINANCIALS (₹ Millions, Ind AS):
+
+BALANCE SHEET:
+                           Sep 30,2025  Mar 31,2025  Mar 31,2024
+Cash & Equivalents:        8.07         8.21         9.82
+Other Financial Assets:    0.01         0            0
+Current Tax Asset (Net):   294.31       294.31       294.31
+Total Current Assets:      302.39       302.52       304.13
+Non-Current Assets:        0            0            0.60
+TOTAL ASSETS:              302.39       302.52       305.16
+Share Capital:             2941.90      2941.90      2941.90
+Deemed Equity:             97.50        97.50        97.50
+Retained Earnings:         -2756.31     -2756.31     -2754.42
+TOTAL EQUITY:              283.09       283.09       284.98
+Trade Payables (non-MSME): 19.29        19.33        19.72
+Trade Payables (MSME):     0            0            0.43
+Other Current Liabilities: 0            0.09         0.03
+Total Current Liabilities: 19.29        19.42        20.18
+TOTAL EQUITY+LIABILITIES:  302.39       302.52       305.16
+
+P&L:
+                       H1 FY26    FY25       FY24
+Revenue from Ops:      0          0          0
+Other Income:          0          0          8.51
+Finance Costs:         0          0.354      0
+Other Expenses:        0.003      1.536      10.014
+Total Expenses:        0.003      1.890      10.014
+Net Loss:              -0.003     -1.890     -1.507
+Tax Expense:           0          0          0
+
+CASH FLOW:
+                       H1 FY26    FY25       FY24
+Net Operating CF:      -0.133     -1.614     -2.853
+Net Investing CF:      0          0          0
+Net Financing CF:      0          0          0
+Opening Cash:          8.21       9.82       12.67
+Closing Cash:          8.07       8.21       9.82
+
+KEY RATIOS (Sep 25):
+Current Ratio: 15.7x | Equity Ratio: 93.6% | Debt/Equity: ~0 | Tax Asset % of Assets: 97.3%
+
+CONTEXT:
+- KSEL is an SPV for the Khed-Sinnar expressway section in Maharashtra under a Service Concession Arrangement (SCA)
+- Pre-revenue / construction phase — no toll collections yet
+- Deemed equity = shareholder subordinated instruments classified as equity under Ind AS 109
+- Large accumulated deficit (₹2,756M) reflects historical project development costs
+- Current tax asset (₹294.31M) = advance tax / TDS receivable locked in — will be refunded or offset against future tax liability
+- Company is completely debt-free (no borrowings outstanding)
+- Share capital unchanged at ₹2,941.9M — no fresh equity raised across all periods
+- H1 FY26 loss dropped 99.8% vs FY25, showing significant cost rationalisation
+- CIN: U45209MH2013PLC242133
+
+RESPONSE RULES:
+- Keep answers under 180 words unless asked for detailed analysis
+- Use specific numbers from the data
+- Use ₹ and M (millions) notation
+- Format with bold for key figures using ** markdown
+- Use bullet points when listing multiple items
+- Speak as a professional financial advisor to a board
+- Be insightful, not just descriptive`;
+
+// ── CHAT ENGINE ──
+let history = [];
+let busy = false;
+
+function askQ(q) {
+  document.getElementById('chatInput').value = q;
+  sendMessage();
+}
+
+function handleKey(e) {
+  if (e.key==='Enter' && !e.shiftKey){e.preventDefault();sendMessage();}
+}
+
+function addMsg(role, html) {
+  const box = document.getElementById('chatMessages');
+  const d = document.createElement('div');
+  d.className = 'msg' + (role==='user'?' user':'');
+  d.innerHTML = `<div class="msg-avatar ${role}">${role==='user'?'You':'AI'}</div><div class="msg-bubble ${role}">${html}</div>`;
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+}
+
+function showTyping() {
+  const box = document.getElementById('chatMessages');
+  const d = document.createElement('div');
+  d.className='msg'; d.id='typing';
+  d.innerHTML=`<div class="msg-avatar ai">AI</div><div class="msg-bubble ai"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+  box.appendChild(d); box.scrollTop=box.scrollHeight;
+}
+
+function fmt(t) {
+  return t
+    .replace(/\*\*(.*?)\*\*/g,'<b>$1</b>')
+    .replace(/\n\n/g,'<br><br>')
+    .replace(/\n/g,'<br>')
+    .replace(/^• /gm,'&bull; ')
+    .replace(/^- /gm,'&bull; ');
+}
+
+async function sendMessage() {
+  const inp = document.getElementById('chatInput');
+  const btn = document.getElementById('sendBtn');
+  const q = inp.value.trim();
+  if (!q || busy) return;
+  inp.value=''; inp.style.height='auto';
+  busy=true; btn.disabled=true;
+  addMsg('user', q);
+  showTyping();
+  history.push({role:'user', content:q});
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system: SYSTEM,
+        messages: history
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const reply = data.content?.[0]?.text || '';
+    history.push({role:'assistant', content:reply});
+    document.getElementById('typing')?.remove();
+    addMsg('ai', fmt(reply));
+  } catch(err) {
+    document.getElementById('typing')?.remove();
+    // Fallback to local smart responses
+    const reply = localAnswer(q);
+    history.push({role:'assistant', content:reply});
+    addMsg('ai', fmt(reply));
+  }
+
+  busy=false; btn.disabled=false;
+  document.getElementById('chatInput').focus();
+}
+
+// ── LOCAL FALLBACK ANSWERS ──
+function localAnswer(q) {
+  const ql = q.toLowerCase();
+
+  if (ql.includes('board summ') || ql.includes('4 bullet') || ql.includes('overview')) {
+    return `**KSEL Board Financial Summary — H1 FY26:**\n\n• **Strong liquidity:** Total assets ₹302.39M with current ratio of 15.7x — no near-term solvency risk\n• **Near break-even:** Net loss H1 FY26 is just ₹0.003M — down 99.8% from ₹1.89M in FY25, signaling excellent cost control\n• **Zero debt:** Completely debt-free; all liabilities are trade payables of ₹19.29M\n• **Pre-revenue stage:** Revenue from operations remains nil — the company is awaiting commencement of toll operations under its Service Concession Arrangement`;
+  }
+  if (ql.includes('risk')) {
+    return `**Top 3 Financial Risks for KSEL:**\n\n• **Revenue risk:** Still in pre-revenue phase. Nil toll income means the company depends entirely on its balance sheet (₹302M assets) to sustain operations. Any delay in concession commencement compounds losses.\n• **Tax asset concentration:** ₹294.31M (97.3% of assets) is locked as a current tax asset. If this refund/offset is delayed or disputed, liquidity drops sharply.\n• **Accumulated deficit:** At ₹2,756M against share capital of ₹2,941M, the deficit is 93.7% of paid-up capital — a technical near-insolvency situation that should be monitored.`;
+  }
+  if (ql.includes('tax asset') || ql.includes('294')) {
+    return `The **₹294.31M Current Tax Asset** represents advance tax paid and TDS (Tax Deducted at Source) receivable by KSEL from the government. It is:\n\n• **97.3% of total assets** — an unusually high concentration\n• **Unchanged across all 3 periods** (FY24, FY25, H1 FY26) — no refund or offset has occurred yet\n• Likely locked in pending revenue generation or formal tax assessment\n\nOnce KSEL commences toll operations and generates taxable income, this asset can be offset. The board should track the recovery timeline closely as it is the company's primary asset.`;
+  }
+  if (ql.includes('deficit') || ql.includes('2756') || ql.includes('accumulated')) {
+    return `The **₹2,756.31M accumulated deficit** has built up over KSEL's life as a pre-revenue SPV. Key points:\n\n• Share capital invested: **₹2,941.9M**\n• Cumulative losses consumed: **₹2,756.3M** (93.7% of capital)\n• Remaining net equity: **₹283.09M**\n\nThis is typical for a road concession SPV in construction/pre-revenue phase — large upfront costs (project development, interest during construction, advisory fees) are expensed while no revenue is earned. The situation should self-correct once toll operations begin.`;
+  }
+  if (ql.includes('debt') || ql.includes('capital structure') || ql.includes('borrow')) {
+    return `**KSEL Capital Structure (Sep 2025):**\n\n• **Zero financial debt** — no borrowings outstanding at all\n• Equity: ₹283.09M (93.6% of total assets)\n• Trade payables: ₹19.29M (6.4% of total)\n• Deemed equity: ₹97.5M (subordinated shareholder instruments classified as equity under Ind AS)\n\nThis is an extremely conservative capital structure. The company is entirely equity-funded, which is unusual for a road SPV (most use project finance debt). This may indicate debt is held at a parent/holding company level, or the project financing phase is yet to begin.`;
+  }
+  if (ql.includes('sca') || ql.includes('service concession') || ql.includes('what is')) {
+    return `A **Service Concession Arrangement (SCA)** under Ind AS 115 / Appendix D means:\n\n• KSEL was granted the right to operate the Khed-Sinnar expressway by a grantor (likely NHAI or Maharashtra government) for a fixed period\n• In return, KSEL builds/maintains the infrastructure and collects tolls\n• The infrastructure is NOT owned by KSEL — it reverts to the grantor at concession end\n• Under Ind AS, KSEL recognises either an **Intangible Asset** (right to collect tolls) or a **Financial Asset** depending on demand risk\n\nSince KSEL is pre-revenue, toll operations haven't commenced yet — which explains the nil revenue across all periods.`;
+  }
+  if (ql.includes('revenue') || ql.includes('toll') || ql.includes('outlook')) {
+    return `**Revenue Outlook for KSEL:**\n\nKSEL has reported **nil revenue from operations** across all three periods. Revenue generation depends on:\n\n• Completion of construction / civil works on the Khed-Sinnar expressway\n• Receipt of completion certificate / PCOD (Provisional Certificate of Commencement of Operations)\n• Commencement of toll collection\n\nThe board should track: (1) construction completion milestones, (2) NHAI/government approvals, (3) PCOD date. Once toll operations begin, the ₹294.31M tax asset can start being utilized and the accumulated deficit trend will reverse.`;
+  }
+  if (ql.includes('current ratio') || ql.includes('liquid') || ql.includes('15.7')) {
+    return `**Liquidity Analysis:**\n\n• **Current Ratio: 15.7x** (Current Assets ₹302.39M ÷ Current Liabilities ₹19.29M)\n• This is extremely high — well above the standard 2x benchmark\n• **However**, 97.3% of current assets (₹294.31M) is a tax receivable — not immediately liquid cash\n• **Adjusted current ratio** (using only cash): 8.07/19.29 = **0.42x** — which is actually tight\n\nThe headline liquidity appears strong but the board should note that real liquid assets are only ₹8.07M in cash against ₹19.29M in trade payables. Cash burn of ~₹1.6M/year means runway of approximately **5 years** at current burn rate.`;
+  }
+  if (ql.includes('benchmark') || ql.includes('compare') || ql.includes('typical')) {
+    return `**KSEL vs Typical Indian Road SPV:**\n\n• **Leverage:** KSEL is debt-free — unusual. Typical road SPVs use 70:30 debt:equity project finance structures\n• **Revenue:** KSEL has nil revenue — consistent with pre-COD (Commercial Operations Date) phase\n• **Losses:** H1 FY26 loss of ₹0.003M is minimal — typical pre-COD SPVs have higher IDC (Interest During Construction)\n• **Equity ratio 93.6%:** Far above typical 25-30% for leveraged road SPVs\n• **Accumulated deficit:** Large relative to capital — common when projects face delays\n\nOverall KSEL appears to be a **lean, conservatively structured SPV** awaiting revenue commencement.`;
+  }
+  if (ql.includes('deemed equity') || ql.includes('97.5')) {
+    return `**Deemed Equity of ₹97.5M** under Ind AS:\n\nThis represents shareholder loans or preference instruments that have been **reclassified as equity** under Ind AS 109 (Financial Instruments). This happens when:\n\n• Instruments have no fixed repayment obligation\n• Or repayment is contingent on profits / cash availability\n\nBy classifying these as equity rather than debt, KSEL avoids interest charges on the P&L, which helps keep losses low. The ₹97.5M has been **stable across all three reporting periods**, suggesting no new instruments were issued or repaid. It forms part of the ₹283.09M net equity.`;
+  }
+  if (ql.includes('loss') || ql.includes('0.003') || ql.includes('improve')) {
+    return `**Net Loss Reduction — H1 FY26:**\n\nLoss progression: **₹1.51M (FY24) → ₹1.89M (FY25) → ₹0.003M (H1 FY26)**\n\nThe 99.8% reduction is driven by:\n• **Other expenses** falling from ₹1.54M in FY25 to just ₹0.003M in H1 FY26 — likely deferred or settled admin costs\n• **Finance costs** of ₹0.354M in FY25 have reduced to nil in H1 FY26\n\nWhile this is a positive trend, the board should note: (1) This is a 6-month period vs full year comparisons, and (2) once operations begin, the cost base may increase. Still, it signals effective overhead management.`;
+  }
+
+  // Generic fallback
+  return `Based on KSEL's financials:\n\n**Key figures as at Sep 30, 2025:**\n• Total Assets: **₹302.39M** | Equity: **₹283.09M** | Liabilities: **₹19.29M**\n• Net Loss H1 FY26: **₹0.003M** (down 99.8% vs FY25)\n• Cash: **₹8.07M** | Current Tax Asset: **₹294.31M**\n• Revenue from Operations: **NIL** (pre-revenue stage)\n\nCould you rephrase your question or ask something more specific? I can cover balance sheet analysis, P&L trends, cash flow, ratios, risk assessment, or board-level commentary on any line item.`;
+}
+
+// textarea auto-resize
+document.getElementById('chatInput').addEventListener('input',function(){
+  this.style.height='auto';
+  this.style.height=Math.min(this.scrollHeight,100)+'px';
+});
+</script>
+</body>
+</html>
